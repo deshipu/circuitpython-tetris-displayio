@@ -2,7 +2,7 @@ import board
 import random
 import displayio
 import time
-import gamepad
+import keypad
 import digitalio
 import terminalio
 
@@ -84,16 +84,18 @@ bricks.append(displayio.TileGrid(preview, pixel_shader=palette, x=12, y=0))
 root = displayio.Group()
 root.append(bricks)
 root.append(text_grid)
+root[0] = displayio.Group()
+root[0] = bricks
 board.DISPLAY.show(root)
-buttons = gamepad.GamePad(
-    digitalio.DigitalInOut(board.BUTTON_O),
-    digitalio.DigitalInOut(board.BUTTON_X),
-    digitalio.DigitalInOut(board.BUTTON_Z),
-    digitalio.DigitalInOut(board.BUTTON_DOWN),
-    digitalio.DigitalInOut(board.BUTTON_LEFT),
-    digitalio.DigitalInOut(board.BUTTON_RIGHT),
-    digitalio.DigitalInOut(board.BUTTON_UP),
-)
+buttons = keypad.Keys((
+    board.BUTTON_O,
+    board.BUTTON_X,
+    board.BUTTON_Z,
+    board.BUTTON_DOWN,
+    board.BUTTON_LEFT,
+    board.BUTTON_RIGHT,
+    board.BUTTON_UP,
+), value_when_pressed=False)
 
 brick = None
 score = 0
@@ -110,13 +112,20 @@ while True:
         if brick.hit(screen, 0, 0):
             break
     tick += 0.5
+    pressed = 0
+    event = keypad.Event()
     while True:
         board.DISPLAY.refresh()
         time.sleep(0.075)
         if tick <= time.monotonic():
             break
         brick.draw(screen, 0)
-        pressed = buttons.get_pressed()
+        while buttons.events:
+            buttons.events.get_into(event)
+            if event.pressed:
+                pressed |= 1 << event.key_number
+            else:
+                pressed &= ~(1 << event.key_number)
         if pressed & 0x08 and not brick.hit(screen, 0, 1):
             brick.y += 1
         if pressed & 0x20 and not brick.hit(screen, 1, 0):
